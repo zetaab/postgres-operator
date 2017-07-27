@@ -20,6 +20,7 @@ package cluster
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"strconv"
 	"time"
 
 	"github.com/crunchydata/postgres-operator/operator/pvc"
@@ -96,13 +97,12 @@ func Process(clientset *kubernetes.Clientset, client *rest.RESTClient, stopchan 
 		deleteCluster(clientset, client, cluster, namespace)
 	}
 
-	/**
-	updateHandler := func(old interface{}, obj interface{}) {
+	createUpdateHandler := func(old interface{}, obj interface{}) {
+		oldcluster := old.(*tpr.PgCluster)
 		cluster := obj.(*tpr.PgCluster)
 		eventchan <- cluster
-		log.Info("updateHandler called")
+		updateCluster(clientset, client, cluster, oldcluster, namespace)
 	}
-	*/
 
 	_, controller := cache.NewInformer(
 		source,
@@ -110,6 +110,7 @@ func Process(clientset *kubernetes.Clientset, client *rest.RESTClient, stopchan 
 		time.Second*10,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    createAddHandler,
+			UpdateFunc: createUpdateHandler,
 			DeleteFunc: createDeleteHandler,
 		})
 
@@ -288,4 +289,69 @@ func AddUpgrade(clientset *kubernetes.Clientset, client *rest.RESTClient, upgrad
 
 	return err
 
+}
+
+func updateCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *tpr.PgCluster, oldcluster *tpr.PgCluster, namespace string) {
+
+	if oldcluster.Spec.REPLICAS != cl.Spec.REPLICAS {
+		log.Debug("detected change to REPLICAS for " + cl.Spec.Name + " from " + oldcluster.Spec.REPLICAS + " to " + cl.Spec.REPLICAS)
+		ScaleReplicas(clientset, client, cl, oldcluster, namespace)
+	}
+
+}
+
+func ScaleReplicas(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *tpr.PgCluster, oldcluster *tpr.PgCluster, namespace string) {
+	oldCount, err := strconv.Atoi(oldcluster.Spec.REPLICAS)
+	if err != nil {
+		log.Error(err)
+	}
+	newCount, err := strconv.Atoi(cl.Spec.REPLICAS)
+	if err != nil {
+		log.Error(err)
+	}
+
+	if oldCount > newCount {
+		log.Debug("scale down not implemented yet")
+	} else {
+		//scale up
+		log.Debug("scale up called ")
+		newReplicas := newCount - oldCount
+
+		for i := 0; i < newReplicas; i++ {
+			//generate a unique name suffix
+			uniqueName := strconv.Itoa(i)
+			//create a PVC
+			createPVC(clientset, cl.Spec.Name+"-replica-"+uniqueName, &cl.Spec.ReplicaStorage, namespace)
+			//create a Deployment
+		}
+	}
+}
+
+func createPVC(clientset *kubernetes.Clientset, name string, storageSpec *tpr.PgStorageSpec, namespace string) error {
+	var pvcName string
+	var err error
+
+	switch storageSpec.StorageType {
+	case "":
+		log.Debug("StorageType is empty")
+	case "emptydir":
+		log.Debug("StorageType is emptydir")
+	case "existing":
+		log.Debug("StorageType is existing")
+		pvcName = storageSpec.PvcName
+	case "create":
+		log.Debug("StorageType is create")
+		pvcName = name + "-pvc"
+		log.Debug("PVC_NAME=%s PVC_SIZE=%s PVC_ACCESS_MODE=%s\n",
+			pvcName, storageSpec.PvcAccessMode, storageSpec.PvcSize)
+		err = pvc.Create(clientset, pvcName, storageSpec.PvcAccessMode, storageSpec.PvcSize, storageSpec.StorageType, storageSpec.StorageClass, namespace)
+		if err != nil {
+			log.Error("error in pvc create " + err.Error())
+			return err
+		}
+		log.Info("created PVC =" + pvcName + " in namespace " + namespace)
+	case "dynamic":
+		log.Debug("StorageType is dynamic, not supported yet")
+	}
+	return err
 }
