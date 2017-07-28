@@ -557,7 +557,7 @@ func (r ClusterStrategy1) CreateReplica(clientset *kubernetes.Clientset, client 
 		PVC_NAME:             pvcName,
 		PG_MASTER_HOST:       cl.Spec.PG_MASTER_HOST,
 		PG_DATABASE:          cl.Spec.PG_DATABASE,
-		REPLICAS:             cl.Spec.REPLICAS,
+		REPLICAS:             "1",
 		OPERATOR_LABELS:      util.GetLabels(serviceName, cl.Spec.ClusterName, false, true),
 		SECURITY_CONTEXT:     util.CreateSecContext(cl.Spec.FS_GROUP, cl.Spec.SUPPLEMENTAL_GROUPS),
 		PGROOT_SECRET_NAME:   cl.Spec.PGROOT_SECRET_NAME,
