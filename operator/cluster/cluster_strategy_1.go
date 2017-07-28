@@ -280,9 +280,18 @@ func (r ClusterStrategy1) DeleteCluster(clientset *kubernetes.Clientset, tprclie
 func shutdownCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *tpr.PgCluster, namespace string) error {
 	var err error
 
-	var replicaName = cl.Spec.Name + REPLICA_SUFFIX
+	//var replicaName = cl.Spec.Name + REPLICA_SUFFIX
+
+	//get the deployments
+	lo := v1.ListOptions{LabelSelector: "pg-cluster=" + cl.Spec.Name}
+	deployments, err := clientset.Deployments(namespace).List(lo)
+	if err != nil {
+		log.Error("error getting list of deployments" + err.Error())
+		return err
+	}
 
 	//drain the deployments
+	/**
 	err = util.DrainDeployment(clientset, replicaName, namespace)
 	if err != nil {
 		log.Error("error draining replica Deployment " + err.Error())
@@ -291,6 +300,14 @@ func shutdownCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, c
 	if err != nil {
 		log.Error("error draining master Deployment " + err.Error())
 	}
+	*/
+	for _, d := range deployments.Items {
+		log.Debug("draining deployment " + d.ObjectMeta.Name)
+		err = util.DrainDeployment(clientset, d.ObjectMeta.Name, namespace)
+		if err != nil {
+			log.Error("error deleting replica Deployment " + err.Error())
+		}
+	}
 
 	//sleep just a bit to give the drain time to work
 	time.Sleep(2000 * time.Millisecond)
@@ -298,11 +315,13 @@ func shutdownCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, c
 	//TODO when client-go 3.0 is ready, use propagation_policy
 	//in the delete options to also delete the replica sets
 
-	//delete the replica deployment
-
-	err = clientset.Deployments(namespace).Delete(replicaName, &v1.DeleteOptions{})
-	if err != nil {
-		log.Error("error deleting replica Deployment " + err.Error())
+	//delete the deployments
+	for _, d := range deployments.Items {
+		log.Debug("deleting deployment " + d.ObjectMeta.Name)
+		err = clientset.Deployments(namespace).Delete(d.ObjectMeta.Name, &v1.DeleteOptions{})
+		if err != nil {
+			log.Error("error deleting replica Deployment " + err.Error())
+		}
 	}
 
 	//wait for the replica deployment to delete
@@ -315,10 +334,12 @@ func shutdownCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, c
 	*/
 
 	//delete the master deployment
+	/**
 	err = clientset.Deployments(namespace).Delete(cl.Spec.Name, &v1.DeleteOptions{})
 	if err != nil {
 		log.Error("error deleting master Deployment " + err.Error())
 	}
+	*/
 
 	//wait for the master deployment to delete
 	/**
