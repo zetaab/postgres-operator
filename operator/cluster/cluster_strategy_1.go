@@ -587,13 +587,11 @@ func (r ClusterStrategy1) CreateReplica(clientset *kubernetes.Clientset, client 
 	}
 
 	switch cl.Spec.ReplicaStorage.StorageType {
-	case "":
-	case "emptydir":
+	case "", "emptydir":
 		log.Debug("MasterStorage.StorageType is emptydir")
 		log.Debug("using the dynamic replica template ")
 		err = ReplicaDeploymentTemplate1.Execute(&replicaDoc, replicaDeploymentFields)
-	case "existing":
-	case "create":
+	case "existing", "create":
 		log.Debug("using the shared replica template ")
 		err = ReplicaDeploymentTemplate1Shared.Execute(&replicaDoc, replicaDeploymentFields)
 	}
