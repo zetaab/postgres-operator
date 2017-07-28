@@ -78,15 +78,6 @@ func scaleCluster(args []string) {
 			if arg == "all" || cluster.Spec.Name == arg {
 				itemFound = true
 				fmt.Printf("scaling %s to %d\n", arg, ReplicaCount)
-				/**
-				err = util.ScaleDeployment(Clientset, arg+"-replica", Namespace, ReplicaCount)
-				if err != nil {
-					log.Error(err.Error())
-				}
-				*/
-
-				log.Info("testing patch of REPLICAS")
-
 				err = util.Patch(Tprclient, "/spec/replicas", strconv.Itoa(ReplicaCount), tpr.CLUSTER_RESOURCE, arg, Namespace)
 				if err != nil {
 					log.Error(err.Error())

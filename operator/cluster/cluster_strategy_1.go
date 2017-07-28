@@ -53,10 +53,10 @@ func init() {
 }
 
 func (r ClusterStrategy1) AddCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *tpr.PgCluster, namespace string, masterPvcName string) error {
-	var serviceDoc, replicaServiceDoc, masterDoc, replicaDoc bytes.Buffer
+	var serviceDoc, masterDoc bytes.Buffer
 	var err error
-	var replicaServiceResult, serviceResult *v1.Service
-	var replicaDeploymentResult, deploymentResult *v1beta1.Deployment
+	var serviceResult *v1.Service
+	var deploymentResult *v1beta1.Deployment
 
 	log.Info("creating PgCluster object using Strategy 1" + " in namespace " + namespace)
 	log.Info("created with Name=" + cl.Spec.Name + " in namespace " + namespace)
@@ -91,6 +91,7 @@ func (r ClusterStrategy1) AddCluster(clientset *kubernetes.Clientset, client *re
 	log.Info("created master service " + serviceResult.Name + " in namespace " + namespace)
 
 	//create the replica service
+	/**
 	replicaServiceFields := ServiceTemplateFields{
 		Name:        cl.Spec.Name + REPLICA_SUFFIX,
 		ClusterName: cl.Spec.Name,
@@ -119,6 +120,7 @@ func (r ClusterStrategy1) AddCluster(clientset *kubernetes.Clientset, client *re
 		return err
 	}
 	log.Info("created replica service " + replicaServiceResult.Name + " in namespace " + namespace)
+	*/
 
 	//create the master deployment
 	deploymentFields := DeploymentTemplateFields{
@@ -165,6 +167,7 @@ func (r ClusterStrategy1) AddCluster(clientset *kubernetes.Clientset, client *re
 	}
 
 	//create the replica deployment
+	/**
 	replicaDeploymentFields := DeploymentTemplateFields{
 		Name:                 cl.Spec.Name + REPLICA_SUFFIX,
 		ClusterName:          cl.Spec.Name,
@@ -209,6 +212,7 @@ func (r ClusterStrategy1) AddCluster(clientset *kubernetes.Clientset, client *re
 		return err
 	}
 	log.Info("created replica Deployment " + replicaDeploymentResult.Name)
+	*/
 	return err
 
 }
@@ -499,4 +503,100 @@ func (r ClusterStrategy1) UpdatePolicyLabels(clientset *kubernetes.Clientset, cl
 	}
 	return err
 
+}
+
+func (r ClusterStrategy1) CreateReplica(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *tpr.PgCluster, depName, pvcName, namespace string) error {
+	var replicaServiceDoc, replicaDoc bytes.Buffer
+	var err error
+	var replicaServiceResult *v1.Service
+	var replicaDeploymentResult *v1beta1.Deployment
+
+	//create the replica service if it doesn't exist
+	serviceName := cl.Spec.Name + "-replica"
+	_, err = clientset.Core().Services(namespace).Get(serviceName)
+	if kerrors.IsNotFound(err) {
+
+		replicaServiceFields := ServiceTemplateFields{
+			Name:        serviceName,
+			ClusterName: cl.Spec.Name,
+			Port:        cl.Spec.Port,
+		}
+
+		err = ServiceTemplate1.Execute(&replicaServiceDoc, replicaServiceFields)
+		if err != nil {
+			log.Error(err.Error())
+			return err
+		}
+
+		replicaServiceDocString := replicaServiceDoc.String()
+		log.Info(replicaServiceDocString)
+
+		replicaService := v1.Service{}
+		err = json.Unmarshal(replicaServiceDoc.Bytes(), &replicaService)
+		if err != nil {
+			log.Error("error unmarshalling json into replica Service " + err.Error())
+			return err
+		}
+
+		replicaServiceResult, err = clientset.Services(namespace).Create(&replicaService)
+		if err != nil {
+			log.Error("error creating replica Service " + err.Error())
+			return err
+		}
+		log.Info("created replica service " + replicaServiceResult.Name + " in namespace " + namespace)
+	} else {
+		log.Debug("replica service already exists")
+	}
+
+	//create the replica deployment
+	replicaDeploymentFields := DeploymentTemplateFields{
+		Name:                 depName,
+		ClusterName:          cl.Spec.Name,
+		Port:                 cl.Spec.Port,
+		CCP_IMAGE_TAG:        cl.Spec.CCP_IMAGE_TAG,
+		PVC_NAME:             pvcName,
+		PG_MASTER_HOST:       cl.Spec.PG_MASTER_HOST,
+		PG_DATABASE:          cl.Spec.PG_DATABASE,
+		REPLICAS:             cl.Spec.REPLICAS,
+		OPERATOR_LABELS:      util.GetLabels(serviceName, cl.Spec.ClusterName, false, true),
+		SECURITY_CONTEXT:     util.CreateSecContext(cl.Spec.FS_GROUP, cl.Spec.SUPPLEMENTAL_GROUPS),
+		PGROOT_SECRET_NAME:   cl.Spec.PGROOT_SECRET_NAME,
+		PGMASTER_SECRET_NAME: cl.Spec.PGMASTER_SECRET_NAME,
+		PGUSER_SECRET_NAME:   cl.Spec.PGUSER_SECRET_NAME,
+	}
+
+	switch cl.Spec.ReplicaStorage.StorageType {
+	case "":
+	case "emptydir":
+		log.Debug("MasterStorage.StorageType is emptydir")
+		log.Debug("using the dynamic replica template ")
+		err = ReplicaDeploymentTemplate1.Execute(&replicaDoc, replicaDeploymentFields)
+	case "existing":
+	case "create":
+		log.Debug("using the shared replica template ")
+		err = ReplicaDeploymentTemplate1Shared.Execute(&replicaDoc, replicaDeploymentFields)
+	}
+
+	if err != nil {
+		log.Error(err.Error())
+		return err
+	}
+	replicaDeploymentDocString := replicaDoc.String()
+	log.Info(replicaDeploymentDocString)
+
+	replicaDeployment := v1beta1.Deployment{}
+	err = json.Unmarshal(replicaDoc.Bytes(), &replicaDeployment)
+	if err != nil {
+		log.Error("error unmarshalling replica json into Deployment " + err.Error())
+		return err
+	}
+
+	replicaDeploymentResult, err = clientset.Deployments(namespace).Create(&replicaDeployment)
+	if err != nil {
+		log.Error("error creating replica Deployment " + err.Error())
+		return err
+	}
+
+	log.Info("created replica Deployment " + replicaDeploymentResult.Name)
+	return err
 }

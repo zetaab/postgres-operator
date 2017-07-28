@@ -20,6 +20,7 @@ package cluster
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -36,6 +37,7 @@ import (
 
 type ClusterStrategy interface {
 	AddCluster(*kubernetes.Clientset, *rest.RESTClient, *tpr.PgCluster, string, string) error
+	CreateReplica(*kubernetes.Clientset, *rest.RESTClient, *tpr.PgCluster, string, string, string) error
 	DeleteCluster(*kubernetes.Clientset, *rest.RESTClient, *tpr.PgCluster, string) error
 
 	MinorUpgrade(*kubernetes.Clientset, *rest.RESTClient, *tpr.PgCluster, *tpr.PgUpgrade, string) error
@@ -136,7 +138,8 @@ func addCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *tp
 	}
 
 	//create the PVC for the master if required
-	var pvcName string
+	//var pvcName string
+	/**
 
 	switch cl.Spec.MasterStorage.StorageType {
 	case "":
@@ -160,6 +163,10 @@ func addCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *tp
 	case "dynamic":
 		log.Debug("MasterStorage.StorageType is dynamic, not supported yet")
 	}
+	*/
+
+	pvcName, err := createPVC(clientset, cl.Spec.Name, &cl.Spec.MasterStorage, namespace)
+	log.Debug("created master pvc [" + pvcName + "]")
 
 	log.Debug("creating PgCluster object strategy is [" + cl.Spec.STRATEGY + "]")
 
@@ -301,6 +308,7 @@ func updateCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, cl 
 }
 
 func ScaleReplicas(clientset *kubernetes.Clientset, client *rest.RESTClient, cl *tpr.PgCluster, oldcluster *tpr.PgCluster, namespace string) {
+
 	oldCount, err := strconv.Atoi(oldcluster.Spec.REPLICAS)
 	if err != nil {
 		log.Error(err)
@@ -308,6 +316,20 @@ func ScaleReplicas(clientset *kubernetes.Clientset, client *rest.RESTClient, cl 
 	newCount, err := strconv.Atoi(cl.Spec.REPLICAS)
 	if err != nil {
 		log.Error(err)
+	}
+
+	//get the strategy to use
+	if cl.Spec.STRATEGY == "" {
+		cl.Spec.STRATEGY = "1"
+		log.Info("using default cluster strategy")
+	}
+
+	strategy, ok := StrategyMap[cl.Spec.STRATEGY]
+	if ok {
+		log.Info("strategy found")
+	} else {
+		log.Error("invalid STRATEGY requested for cluster upgrade" + cl.Spec.STRATEGY)
+		return
 	}
 
 	if oldCount > newCount {
@@ -319,15 +341,22 @@ func ScaleReplicas(clientset *kubernetes.Clientset, client *rest.RESTClient, cl 
 
 		for i := 0; i < newReplicas; i++ {
 			//generate a unique name suffix
-			uniqueName := strconv.Itoa(i)
+			uniqueName := RandStringBytesRmndr(4)
+			depName := cl.Spec.Name + "-replica-" + uniqueName
+
 			//create a PVC
-			createPVC(clientset, cl.Spec.Name+"-replica-"+uniqueName, &cl.Spec.ReplicaStorage, namespace)
+			pvcName, err := createPVC(clientset, depName, &cl.Spec.ReplicaStorage, namespace)
+			if err != nil {
+				log.Error(err)
+				return
+			}
 			//create a Deployment
+			strategy.CreateReplica(clientset, client, cl, depName, pvcName, namespace)
 		}
 	}
 }
 
-func createPVC(clientset *kubernetes.Clientset, name string, storageSpec *tpr.PgStorageSpec, namespace string) error {
+func createPVC(clientset *kubernetes.Clientset, name string, storageSpec *tpr.PgStorageSpec, namespace string) (string, error) {
 	var pvcName string
 	var err error
 
@@ -347,11 +376,29 @@ func createPVC(clientset *kubernetes.Clientset, name string, storageSpec *tpr.Pg
 		err = pvc.Create(clientset, pvcName, storageSpec.PvcAccessMode, storageSpec.PvcSize, storageSpec.StorageType, storageSpec.StorageClass, namespace)
 		if err != nil {
 			log.Error("error in pvc create " + err.Error())
-			return err
+			return pvcName, err
 		}
 		log.Info("created PVC =" + pvcName + " in namespace " + namespace)
 	case "dynamic":
 		log.Debug("StorageType is dynamic, not supported yet")
 	}
-	return err
+
+	return pvcName, err
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyz"
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+func main() {
+
+}
+func RandStringBytesRmndr(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+	}
+	return string(b)
 }
