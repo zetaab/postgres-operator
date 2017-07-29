@@ -37,7 +37,7 @@ import (
 
 type ClusterStrategy interface {
 	AddCluster(*kubernetes.Clientset, *rest.RESTClient, *tpr.PgCluster, string, string) error
-	CreateReplica(*kubernetes.Clientset, *rest.RESTClient, *tpr.PgCluster, string, string, string) error
+	CreateReplica(string, *kubernetes.Clientset, *tpr.PgCluster, string, string, string, bool) error
 	DeleteCluster(*kubernetes.Clientset, *rest.RESTClient, *tpr.PgCluster, string) error
 
 	MinorUpgrade(*kubernetes.Clientset, *rest.RESTClient, *tpr.PgCluster, *tpr.PgUpgrade, string) error
@@ -350,8 +350,20 @@ func ScaleReplicas(clientset *kubernetes.Clientset, client *rest.RESTClient, cl 
 				log.Error(err)
 				return
 			}
-			//create a Deployment
-			strategy.CreateReplica(clientset, client, cl, depName, pvcName, namespace)
+			//create a Deployment and its service
+			serviceName := depName + "-replica"
+			replicaServiceFields := ServiceTemplateFields{
+				Name:        serviceName,
+				ClusterName: cl.Spec.Name,
+				Port:        cl.Spec.Port,
+			}
+
+			err = CreateService(clientset, &replicaServiceFields, namespace)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			strategy.CreateReplica(serviceName, clientset, cl, depName, pvcName, namespace, false)
 		}
 	}
 }
