@@ -137,6 +137,8 @@ func deleteUpgrade(clientset *kubernetes.Clientset, tprclient *rest.RESTClient, 
 //upgraded data files
 func MajorUpgradeProcess(clientset *kubernetes.Clientset, tprclient *rest.RESTClient, stopchan chan struct{}, namespace string) {
 
+	log.Info("MajorUpgradeProcess watch starting...")
+
 	lo := v1.ListOptions{LabelSelector: "pgupgrade=true"}
 	fw, err := clientset.Batch().Jobs(namespace).Watch(lo)
 	if err != nil {
