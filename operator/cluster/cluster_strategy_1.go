@@ -240,6 +240,14 @@ func shutdownCluster(clientset *kubernetes.Clientset, client *rest.RESTClient, c
 		}
 	}
 
+	for _, d := range deployments.Items {
+		log.Debug("making sure deployment " + d.ObjectMeta.Name + " is deleted")
+		err := util.WaitUntilDeploymentIsDeleted(clientset, d.ObjectMeta.Name, time.Second*3, namespace)
+		if err != nil {
+			log.Error("timeout waiting for deployment " + d.ObjectMeta.Name + " to delete")
+		}
+	}
+
 	return err
 
 }
