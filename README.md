@@ -3,18 +3,18 @@ v1.4, {docdate}
 
 ## Table of Contents
 
-* <<Overview>>
-* <<Requirements>>
-* <<Build and Setup Instructions>>
-* <<Configuration>>
-* <<Examples>>
-* <<PostgreSQL Operator Container>>
+* Overview
+* Requirements
+* Build and Setup Instructions
+* Configuration
+* Examples
+* PostgreSQL Operator Container
 
-[#Overview]
 ## Overview
 
 The PostgreSQL Operator provides a Kubernetes operator capability for managing PostgreSQL Clusters deployed within a Kubernetes.
 
+[![asciicast](https://asciinema.org/a/131455.png)](https://asciinema.org/a/131455)
 
 The PostgreSQL Operator leverages Kubernetes Third Party Resources to define custom resource type **pgcluster**, **pgbackups**, and **pgupgrades**.
 
@@ -40,7 +40,6 @@ What actually gets created on the Kube cluster for a
 **pgcluster** resource is defined as a **deployment strategy**.  Strategies
 are documented in detail in [Deployment Strategies](./docs/strategies.asciidoc)
 
-[#Requirements]
 ## Requirements
 
 * Kubernetes 1.5.3+
@@ -49,7 +48,6 @@ are documented in detail in [Deployment Strategies](./docs/strategies.asciidoc)
 * [PostgreSQL Upgrade Container](https://hub.docker.com/r/crunchydata/crunchy-upgrade/)
 * For OpenShift deployments, Openshift Origin 1.5.1+ or Openshift Container Platform 3.5
 
-[#Build and Setup Instructions]
 ## Build and Setup Instructions
 
 With the operator deployed, the **pgo** command line
@@ -60,13 +58,11 @@ You can download a pre-built **pgo** CLI binary from
 the [Releases Page](https://github.com/CrunchyData/postgres-operator/releases)
 it yourself using the build instructions, documented on the [Build and Setup page](./docs/build.asciidoc)
 
-[#Configuration]
 ## Configuration
 
 You can configure both the client and the operator.  The
 configuration options are documented on the [Configuration page](./docs/config.asciidoc)
 
-[#Examples]
 ## Examples
 
 Some examples of using the **pgo** command line interface are as follows.
@@ -145,7 +141,6 @@ pgo apply policy1 --selector=name=mycluster
 Details on the **pgo** commands are found in the 
 [User Guide](./docs/user-guide.asciidoc)
 
-[#PostgreSQL Operator Container]
 ## PostgreSQL Operator Container
 
 In the following diagram, the postgres operator client, **pgo**, is
