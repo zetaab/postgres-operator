@@ -15,8 +15,6 @@ v1.4, {docdate}
 
 The PostgreSQL Operator provides a Kubernetes operator capability for managing PostgreSQL Clusters deployed within a Kubernetes.
 
-image::https://asciinema.org/a/131455.png[link="https://asciinema.org/a/131455"]
-
 The PostgreSQL Operator leverages Kubernetes Third Party Resources to define custom resource type *pgcluster*, *pgbackups*, and *pgupgrades*.
 
 Once those custom objects are defined, Kubernetes provides the ability to create and manage those objects similar to any other native Kubernetes object.
@@ -149,7 +147,7 @@ pgo create policy policy1 --url=https://someurl/policy1.sql
 ----
 
 .Apply a Policy
-WARNING:  policies are POWERFUL and executed as the superuser in PostgreSQL
+WARNING:  policies are POWERFUL because they are executed as the superuser in PostgreSQL
 which allows for any sort of SQL to be executed.
 [source,bash]
 ----
