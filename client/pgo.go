@@ -20,6 +20,9 @@ import (
 )
 
 func main() {
+	cmd.Initialize()
+	cmd.ValidateConfig()
+	cmd.ConnectToKube()
 	cmd.Execute()
 
 }

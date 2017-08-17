@@ -27,6 +27,9 @@ import (
 
 func main() {
 
+	server.Initialize()
+	server.BuildScheme(server.AddKnownTypes)
+	server.InitializeResources()
 	server.Execute()
 
 	signals := make(chan os.Signal, 1)
