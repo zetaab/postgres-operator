@@ -58,12 +58,12 @@ func Execute() {
 }
 
 func Initialize() {
-	log.Info("Initialize called")
+	log.Debug("Initialize called")
 
 	GREEN = color.New(color.FgGreen).SprintFunc()
 	RED = color.New(color.FgRed).SprintFunc()
 
-	cobra.OnInitialize(InitConfig)
+	//cobra.OnInitialize(InitConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports Persistent Flags, which, if defined here,
@@ -83,7 +83,7 @@ func Initialize() {
 
 // initConfig reads in config file and ENV variables if set.
 func InitConfig() {
-	log.Info("InitConfig called")
+	log.Debug("InitConfig called")
 	if cfgFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(cfgFile)
 	}
