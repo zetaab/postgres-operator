@@ -20,8 +20,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// deleteCmd represents the delete command
-var deleteCmd = &cobra.Command{
+// DeleteCmd represents the delete command
+var DeleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete a policy, database, cluster, backup, or upgrade",
 	Long: `delete allows you to delete a policy, database, cluster, backup, or upgrade
@@ -63,11 +63,11 @@ pgo delete upgrade mycluster`,
 }
 
 func init() {
-	RootCmd.AddCommand(deleteCmd)
-	deleteCmd.AddCommand(deletePolicyCmd)
-	deleteCmd.AddCommand(deleteClusterCmd)
-	deleteCmd.AddCommand(deleteBackupCmd)
-	deleteCmd.AddCommand(deleteUpgradeCmd)
+	RootCmd.AddCommand(DeleteCmd)
+	DeleteCmd.AddCommand(deletePolicyCmd)
+	DeleteCmd.AddCommand(deleteClusterCmd)
+	DeleteCmd.AddCommand(deleteBackupCmd)
+	DeleteCmd.AddCommand(deleteUpgradeCmd)
 
 }
 

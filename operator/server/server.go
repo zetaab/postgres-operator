@@ -46,6 +46,8 @@ const PG_CLONE = "pg-clone.crunchydata.com"
 const PG_POLICY_LOG = "pg-policylog.crunchydata.com"
 const PG_POLICY = "pg-policy.crunchydata.com"
 const PG_CLUSTER = "pg-cluster.crunchydata.com"
+
+//const PG_ETL = "pg-etl.crunchydata.com"
 const PG_BACKUP = "pg-backup.crunchydata.com"
 const PG_UPGRADE = "pg-upgrade.crunchydata.com"
 
@@ -57,7 +59,7 @@ var (
 	Namespace  string
 )
 
-func Execute() {
+func Initialize() {
 	kubeconfig := flag.String("kubeconfig", "", "the path to a kubeconfig, specifies this tool runs outside the cluster")
 	var debug = flag.Bool("debug", false, "defaults to false")
 	var err error
@@ -81,6 +83,8 @@ func Execute() {
 		panic(err.Error())
 	}
 
+	//BuildScheme()
+
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Info("error creating cluster config ")
@@ -93,7 +97,9 @@ func Execute() {
 		panic(err.Error())
 	}
 
-	initializeResources(Clientset)
+}
+
+func Execute() {
 
 	//wait a bit to let the resources be created
 	time.Sleep(2000 * time.Millisecond)
@@ -128,10 +134,12 @@ func buildClientFromFlags(kubeconfig string) (*rest.RESTClient, error) {
 	config.ContentType = runtime.ContentTypeJSON
 	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: api.Codecs}
 
-	schemeBuilder := runtime.NewSchemeBuilder(addKnownTypes)
-	schemeBuilder.AddToScheme(api.Scheme)
-
 	return rest.RESTClientFor(config)
+}
+
+func BuildScheme(funcs ...func(*runtime.Scheme) error) {
+	schemeBuilder := runtime.NewSchemeBuilder(funcs...)
+	schemeBuilder.AddToScheme(api.Scheme)
 }
 
 func configFromFlags(kubeconfig string) (*rest.Config, error) {
@@ -141,7 +149,7 @@ func configFromFlags(kubeconfig string) (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
-func addKnownTypes(scheme *runtime.Scheme) error {
+func AddKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(
 		schema.GroupVersion{Group: PG_GROUP, Version: PG_VERSION},
 		&tpr.PgCluster{},
@@ -165,13 +173,41 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	return nil
 }
 
-func initializeResources(clientset *kubernetes.Clientset) {
+func InitializeResources() {
 	// initialize third party resources if they do not exist
-
-	tpr, err := clientset.Extensions().ThirdPartyResources().Get(PG_CLUSTER, meta_v1.GetOptions{})
+	/**
+	tpr, err := Clientset.Extensions().ThirdPartyResources().Get(PG_ETL, meta_v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			tpr := &v1beta1.ThirdPartyResource{
+				ObjectMeta: meta_v1.ObjectMeta{
+					Name: PG_ETL,
+				},
+				Versions: []v1beta1.APIVersion{
+					{Name: PG_VERSION},
+				},
+				Description: "A postgres etl ThirdPartyResource",
+			}
+
+			result, err := Clientset.Extensions().ThirdPartyResources().Create(tpr)
+			if err != nil {
+				panic(err)
+			}
+			log.Infof("CREATED: %#v\nFROM: %#v\n", result, tpr)
+		} else {
+			panic(err)
+		}
+	} else {
+		log.Infof("SKIPPING: already exists %#v\n", tpr)
+	}
+	*/
+
+	var err error
+
+	_, err = Clientset.Extensions().ThirdPartyResources().Get(PG_CLUSTER, meta_v1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			newtpr := &v1beta1.ThirdPartyResource{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name: PG_CLUSTER,
 				},
@@ -181,22 +217,22 @@ func initializeResources(clientset *kubernetes.Clientset) {
 				Description: "A postgres cluster ThirdPartyResource",
 			}
 
-			result, err := clientset.Extensions().ThirdPartyResources().Create(tpr)
+			result, err := Clientset.Extensions().ThirdPartyResources().Create(newtpr)
 			if err != nil {
 				panic(err)
 			}
-			log.Infof("CREATED: %#v\nFROM: %#v\n", result, tpr)
+			log.Infof("CREATED: %#v\nFROM: %#v\n", result, newtpr)
 		} else {
 			panic(err)
 		}
 	} else {
-		log.Infof("SKIPPING: already exists %#v\n", tpr)
+		log.Info("SKIPPING: pgcluster tpr already exists ")
 	}
 
-	tpr, err = clientset.Extensions().ThirdPartyResources().Get(PG_BACKUP, meta_v1.GetOptions{})
+	_, err = Clientset.Extensions().ThirdPartyResources().Get(PG_BACKUP, meta_v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			tpr := &v1beta1.ThirdPartyResource{
+			backuptpr := &v1beta1.ThirdPartyResource{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name: PG_BACKUP,
 				},
@@ -206,22 +242,22 @@ func initializeResources(clientset *kubernetes.Clientset) {
 				Description: "A postgres backup ThirdPartyResource",
 			}
 
-			result, err := clientset.Extensions().ThirdPartyResources().Create(tpr)
+			result, err := Clientset.Extensions().ThirdPartyResources().Create(backuptpr)
 			if err != nil {
 				panic(err)
 			}
-			log.Infof("CREATED: %#v\nFROM: %#v\n", result, tpr)
+			log.Infof("CREATED: %#v\nFROM: %#v\n", result, backuptpr)
 		} else {
 			panic(err)
 		}
 	} else {
-		log.Infof("SKIPPING: already exists %#v\n", tpr)
+		log.Info("SKIPPING: backup tpr already exists")
 	}
 
-	tpr, err = clientset.Extensions().ThirdPartyResources().Get(PG_UPGRADE, meta_v1.GetOptions{})
+	_, err = Clientset.Extensions().ThirdPartyResources().Get(PG_UPGRADE, meta_v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			tpr := &v1beta1.ThirdPartyResource{
+			upgradetpr := &v1beta1.ThirdPartyResource{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name: PG_UPGRADE,
 				},
@@ -231,22 +267,22 @@ func initializeResources(clientset *kubernetes.Clientset) {
 				Description: "A postgres upgrade ThirdPartyResource",
 			}
 
-			result, err := clientset.Extensions().ThirdPartyResources().Create(tpr)
+			result, err := Clientset.Extensions().ThirdPartyResources().Create(upgradetpr)
 			if err != nil {
 				panic(err)
 			}
-			log.Infof("CREATED: %#v\nFROM: %#v\n", result, tpr)
+			log.Infof("CREATED: %#v\nFROM: %#v\n", result, upgradetpr)
 		} else {
 			panic(err)
 		}
 	} else {
-		log.Infof("SKIPPING: already exists %#v\n", tpr)
+		log.Infof("SKIPPING: pgupgrade already exists ")
 	}
 
-	tpr, err = clientset.Extensions().ThirdPartyResources().Get(PG_POLICY, meta_v1.GetOptions{})
+	_, err = Clientset.Extensions().ThirdPartyResources().Get(PG_POLICY, meta_v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			tpr := &v1beta1.ThirdPartyResource{
+			policytpr := &v1beta1.ThirdPartyResource{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name: PG_POLICY,
 				},
@@ -256,22 +292,22 @@ func initializeResources(clientset *kubernetes.Clientset) {
 				Description: "A postgres policy ThirdPartyResource",
 			}
 
-			result, err := clientset.Extensions().ThirdPartyResources().Create(tpr)
+			result, err := Clientset.Extensions().ThirdPartyResources().Create(policytpr)
 			if err != nil {
 				panic(err)
 			}
-			log.Infof("CREATED: %#v\nFROM: %#v\n", result, tpr)
+			log.Infof("CREATED: %#v\nFROM: %#v\n", result, policytpr)
 		} else {
 			panic(err)
 		}
 	} else {
-		log.Infof("SKIPPING: already exists %#v\n", tpr)
+		log.Info("SKIPPING: policy tpr already exists ")
 	}
 
-	tpr, err = clientset.Extensions().ThirdPartyResources().Get(PG_CLONE, meta_v1.GetOptions{})
+	_, err = Clientset.Extensions().ThirdPartyResources().Get(PG_CLONE, meta_v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			tpr := &v1beta1.ThirdPartyResource{
+			clonetpr := &v1beta1.ThirdPartyResource{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name: PG_CLONE,
 				},
@@ -281,22 +317,22 @@ func initializeResources(clientset *kubernetes.Clientset) {
 				Description: "A postgres clone ThirdPartyResource",
 			}
 
-			result, err := clientset.Extensions().ThirdPartyResources().Create(tpr)
+			result, err := Clientset.Extensions().ThirdPartyResources().Create(clonetpr)
 			if err != nil {
 				panic(err)
 			}
-			log.Infof("CREATED: %#v\nFROM: %#v\n", result, tpr)
+			log.Infof("CREATED: %#v\nFROM: %#v\n", result, clonetpr)
 		} else {
 			panic(err)
 		}
 	} else {
-		log.Infof("SKIPPING: already exists %#v\n", tpr)
+		log.Infof("SKIPPING: clone tpr already exists")
 	}
 
-	tpr, err = clientset.Extensions().ThirdPartyResources().Get(PG_POLICY_LOG, meta_v1.GetOptions{})
+	_, err = Clientset.Extensions().ThirdPartyResources().Get(PG_POLICY_LOG, meta_v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			tpr := &v1beta1.ThirdPartyResource{
+			policylogtpr := &v1beta1.ThirdPartyResource{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name: PG_POLICY_LOG,
 				},
@@ -306,16 +342,16 @@ func initializeResources(clientset *kubernetes.Clientset) {
 				Description: "A postgres policy log ThirdPartyResource",
 			}
 
-			result, err := clientset.Extensions().ThirdPartyResources().Create(tpr)
+			result, err := Clientset.Extensions().ThirdPartyResources().Create(policylogtpr)
 			if err != nil {
 				panic(err)
 			}
-			log.Infof("CREATED: %#v\nFROM: %#v\n", result, tpr)
+			log.Infof("CREATED: %#v\nFROM: %#v\n", result, policylogtpr)
 		} else {
 			panic(err)
 		}
 	} else {
-		log.Infof("SKIPPING: already exists %#v\n", tpr)
+		log.Info("SKIPPING: policy log tpr already exists")
 	}
 
 }

@@ -57,12 +57,13 @@ func Execute() {
 
 }
 
-func init() {
+func Initialize() {
+	log.Debug("Initialize called")
 
 	GREEN = color.New(color.FgGreen).SprintFunc()
 	RED = color.New(color.FgRed).SprintFunc()
 
-	cobra.OnInitialize(initConfig)
+	//cobra.OnInitialize(InitConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports Persistent Flags, which, if defined here,
@@ -81,7 +82,8 @@ func init() {
 }
 
 // initConfig reads in config file and ENV variables if set.
-func initConfig() {
+func InitConfig() {
+	log.Debug("InitConfig called")
 	if cfgFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(cfgFile)
 	}
@@ -125,9 +127,9 @@ func initConfig() {
 
 	log.Debug("namespace is " + viper.GetString("NAMESPACE"))
 
-	validateConfig()
+	//ValidateConfig()
 
-	ConnectToKube()
+	//ConnectToKube()
 
 	/**
 	file, err2 := os.Create("/tmp/pgo-bash-completion.out")
@@ -140,7 +142,7 @@ func initConfig() {
 
 }
 
-func validateConfig() {
+func ValidateConfig() {
 	switch viper.GetString("MASTER_STORAGE.PVC_ACCESS_MODE") {
 	case string(api.ReadWriteOnce), string(api.ReadWriteMany), string(api.ReadOnlyMany):
 	default:
