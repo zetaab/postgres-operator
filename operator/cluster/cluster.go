@@ -263,8 +263,8 @@ func AddUpgrade(clientset *kubernetes.Clientset, client *rest.RESTClient, upgrad
 		return err
 	}
 	if err == nil {
-		log.Info("updating the pg version after cluster upgrade")
 		fullVersion := util.GetFullVersion(upgrade.Spec.CCP_IMAGE_TAG)
+		log.Info("updating the pg version after cluster upgrade with " + upgrade.Spec.CCP_IMAGE_TAG + " fullversion is " + fullVersion)
 		err = util.Patch(client, "/spec/postgresfullversion", fullVersion, tpr.CLUSTER_RESOURCE, upgrade.Spec.Name, namespace)
 		if err != nil {
 			log.Error(err.Error())

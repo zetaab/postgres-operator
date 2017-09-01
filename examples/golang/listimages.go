@@ -28,8 +28,9 @@ func main() {
 	//}
 
 	myfilters := filters.NewArgs()
-	myfilters.Add("label", "Vendor=Crunchy Data Solutions")
-	//myfilters.Add("label", "label=PostgresVersion=9.5")
+	//myfilters.Add("label", "Vendor=Crunchy Data Solutions")
+	//myfilters.Add("label", "label=crunchydata Data Solutions")
+	myfilters.Add("label", "PostgresFullVersion")
 	//fmt.Printf("filters are %v\n", myfilters)
 	//mymap := make(map[string]string)
 	//mymap["Vendor"] = "Crunchy Data Solutions"

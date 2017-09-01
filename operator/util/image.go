@@ -39,7 +39,9 @@ func GetFullVersion(imageTag string) string {
 	}
 
 	myfilters := filters.NewArgs()
-	myfilters.Add("label", "Vendor=Crunchy Data Solutions")
+	//myfilters.Add("label", "Vendor=Crunchy Data Solutions")
+	//myfilters.Add("label", "name=crunchydata/postgres")
+	myfilters.Add("label", "PostgresFullVersion")
 
 	options := types.ImageListOptions{}
 	options.Filters = myfilters
