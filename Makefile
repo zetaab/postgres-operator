@@ -24,6 +24,8 @@ clean:	check-go-vars
 	rm -rf $(GOPATH)/pkg/* $(GOBIN)/*
 	go get github.com/tools/godep
 	godep restore
+api:	check-go-vars
+	cd api && go install apiserver.go
 operatorimage:	check-go-vars
 	cd operator && go install postgres-operator.go
 	cp $(GOBIN)/postgres-operator bin/postgres-operator
